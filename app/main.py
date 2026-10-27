@@ -135,7 +135,7 @@ def render_studio() -> None:
                     st.error(err)
                 else:
                     st.session_state.doc = doc
-                    st.success("SVG code loaded")
+                    st.rerun()
         with col_b:
             if st.button("Load Sample", use_container_width=True):
                 sample = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
@@ -159,7 +159,7 @@ def render_studio() -> None:
     doc: SvgDocument | None = st.session_state.doc
 
     if doc is None:
-        st.info("Upload an SVG file or paste SVG code to begin.")
+        st.info("Use the **Upload File** or **Paste Code** tab above to load an SVG, then preview and export.")
         return
 
     m1, m2, m3, m4 = st.columns(4)
