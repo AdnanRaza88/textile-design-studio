@@ -12,7 +12,7 @@ import streamlit as st
 
 from src.svg.loader import load_from_string, load_from_upload, SvgDocument
 from src.svg.exporter import export_png, export_jpg, export_webp, export_svg_bytes
-from src.svg.repeat import render_repeat_pattern
+from src.svg.preview import svg_to_html_preview, svg_repeat_html
 from src.svg.utils import safe_filename
 from src.chat.ui import render_chat_panel
 
@@ -199,13 +199,12 @@ def render_studio() -> None:
                 if st.button("Reset Zoom"):
                     st.session_state.zoom = 1.0
 
-            disp_w = max(64, int(doc.width * st.session_state.zoom))
-            disp_h = max(64, int(doc.height * st.session_state.zoom))
-            png_bytes, err = export_png(doc.content, disp_w, disp_h)
-            if err:
-                st.error(f"Could not render preview: {err}")
-            else:
-                st.image(png_bytes, use_container_width=False)
+            # Browser-native SVG preview (works on Streamlit Cloud without cairosvg)
+            max_px = max(120, int(min(720, max(doc.width, doc.height) * st.session_state.zoom)))
+            st.markdown(
+                svg_to_html_preview(doc.content, max_width=max_px, max_height=max_px),
+                unsafe_allow_html=True,
+            )
 
         else:
             density = st.slider(
@@ -218,18 +217,11 @@ def render_studio() -> None:
             st.session_state.density = density
 
             canvas_size = 720
-            pattern_bytes, err = render_repeat_pattern(
-                doc.content,
-                doc.width,
-                doc.height,
-                density=density,
-                canvas_size=canvas_size,
+            st.markdown(
+                svg_repeat_html(doc.content, density=density, canvas_size=canvas_size),
+                unsafe_allow_html=True,
             )
-            if err:
-                st.error(f"Could not render repeat pattern: {err}")
-            else:
-                st.image(pattern_bytes, use_container_width=True)
-                st.caption(f"{density}×{density} tile · canvas {canvas_size}px")
+            st.caption(f"{density}×{density} tile · canvas {canvas_size}px")
 
     with right:
         st.subheader("Export")
