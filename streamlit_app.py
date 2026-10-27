@@ -1,4 +1,7 @@
-"""Root entry point for Streamlit Cloud and local runs."""
+"""Root entry point for Streamlit Cloud and local runs.
+
+On Streamlit Community Cloud set Main file path to: streamlit_app.py
+"""
 from __future__ import annotations
 
 import sys
@@ -8,10 +11,7 @@ _ROOT = Path(__file__).resolve().parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+# Import only after path is fixed
 from app.main import main
 
-if __name__ == "__main__":
-    main()
-else:
-    # When Streamlit loads this file it executes top-level code
-    main()
+main()
