@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import io
 import streamlit as st
-from PIL import Image
 
 from src.svg.loader import load_from_string, load_from_upload, SvgDocument
 from src.svg.exporter import export_png, export_jpg, export_webp, export_svg_bytes
 from src.svg.repeat import render_repeat_pattern
 from src.svg.utils import safe_filename
+from src.chat.ui import render_chat_panel
 
 
 st.set_page_config(
@@ -17,13 +16,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# Custom light theme styling
-# ---------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Clean professional light theme */
     .stApp {
         background: linear-gradient(160deg, #f8f7fc 0%, #f0eef8 40%, #eef6f9 100%);
     }
@@ -64,8 +59,9 @@ def init_state():
         "custom_w": None,
         "custom_h": None,
         "bg_color": "#ffffff",
-        "view_mode": "single",  # single | repeat
+        "view_mode": "single",
         "density": 3,
+        "page": "Studio",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -95,31 +91,10 @@ def get_output_dims(doc: SvgDocument) -> tuple[int, int]:
     return max(1, int(doc.width * scale)), max(1, int(doc.height * scale))
 
 
-def main():
-    init_state()
-
+def render_studio() -> None:
     st.title("Textile Design Studio")
     st.caption("Preview, convert and explore seamless SVG patterns for textile design")
 
-    # ------------------------------------------------------------------
-    # Sidebar – global actions
-    # ------------------------------------------------------------------
-    with st.sidebar:
-        st.header("Workspace")
-        if st.button("Reset everything", use_container_width=True):
-            reset_all()
-            st.rerun()
-
-        st.divider()
-        st.markdown("**Modules (coming)**")
-        st.markdown("- Chat + Gemini")
-        st.markdown("- Multi-Agent Designer")
-        st.markdown("- Gallery")
-        st.markdown("- Automation + WhatsApp / Telegram")
-
-    # ------------------------------------------------------------------
-    # Input section
-    # ------------------------------------------------------------------
     tab_upload, tab_code = st.tabs(["Upload File", "Paste Code"])
 
     with tab_upload:
@@ -179,9 +154,6 @@ def main():
         st.info("Upload an SVG file or paste SVG code to begin.")
         return
 
-    # ------------------------------------------------------------------
-    # Metadata
-    # ------------------------------------------------------------------
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Source", "File" if doc.source_type == "file" else "Code")
     m2.metric("Name", doc.file_name)
@@ -190,9 +162,6 @@ def main():
 
     st.divider()
 
-    # ------------------------------------------------------------------
-    # View mode
-    # ------------------------------------------------------------------
     view_cols = st.columns([1, 1, 2])
     with view_cols[0]:
         mode = st.radio(
@@ -203,9 +172,6 @@ def main():
         )
         st.session_state.view_mode = "single" if mode.startswith("Single") else "repeat"
 
-    # ------------------------------------------------------------------
-    # Preview area
-    # ------------------------------------------------------------------
     left, right = st.columns([3, 2])
 
     with left:
@@ -225,7 +191,6 @@ def main():
                 if st.button("Reset Zoom"):
                     st.session_state.zoom = 1.0
 
-            # Render single preview
             disp_w = max(64, int(doc.width * st.session_state.zoom))
             disp_h = max(64, int(doc.height * st.session_state.zoom))
             png_bytes, err = export_png(doc.content, disp_w, disp_h)
@@ -235,7 +200,6 @@ def main():
                 st.image(png_bytes, use_container_width=False)
 
         else:
-            # Repeat pattern view
             density = st.slider(
                 "Repeat density (tiles per side)",
                 min_value=1,
@@ -259,9 +223,6 @@ def main():
                 st.image(pattern_bytes, use_container_width=True)
                 st.caption(f"{density}×{density} tile · canvas {canvas_size}px")
 
-    # ------------------------------------------------------------------
-    # Export controls
-    # ------------------------------------------------------------------
     with right:
         st.subheader("Export")
 
@@ -295,7 +256,6 @@ def main():
 
         base_name = safe_filename(doc.file_name)
 
-        # PNG
         png_data, png_err = export_png(doc.content, out_w, out_h)
         if png_data:
             st.download_button(
@@ -308,7 +268,6 @@ def main():
         else:
             st.warning(png_err or "PNG export unavailable")
 
-        # JPG
         jpg_data, jpg_err = export_jpg(
             doc.content, out_w, out_h, background=st.session_state.bg_color
         )
@@ -323,7 +282,6 @@ def main():
         else:
             st.warning(jpg_err or "JPG export unavailable")
 
-        # WebP
         webp_data, webp_err = export_webp(doc.content, out_w, out_h)
         if webp_data:
             st.download_button(
@@ -336,7 +294,6 @@ def main():
         else:
             st.warning(webp_err or "WebP export unavailable")
 
-        # SVG
         svg_bytes = export_svg_bytes(doc.content)
         st.download_button(
             "Download SVG",
@@ -345,6 +302,38 @@ def main():
             mime="image/svg+xml",
             use_container_width=True,
         )
+
+
+def main():
+    init_state()
+
+    with st.sidebar:
+        st.header("Workspace")
+        page = st.radio(
+            "Navigate",
+            options=["Studio", "Chat"],
+            index=0 if st.session_state.page == "Studio" else 1,
+            key="nav_radio",
+        )
+        st.session_state.page = page
+
+        st.divider()
+        if st.button("Reset everything", use_container_width=True):
+            reset_all()
+            st.rerun()
+
+        st.divider()
+        st.markdown("**Modules**")
+        st.markdown("- Studio (active)")
+        st.markdown("- Chat + Gemini (active)")
+        st.markdown("- Multi-Agent Designer")
+        st.markdown("- Gallery")
+        st.markdown("- Automation")
+
+    if st.session_state.page == "Chat":
+        render_chat_panel()
+    else:
+        render_studio()
 
 
 if __name__ == "__main__":
