@@ -13,14 +13,18 @@ except Exception:
 
 
 def _svg_to_png_bytes(svg_content: str, width: int, height: int) -> bytes:
-    if HAS_CAIRO:
-        return cairosvg.svg2png(
-            bytestring=svg_content.encode("utf-8"),
-            output_width=width,
-            output_height=height,
-        )
+    errors = []
 
-    # Minimal fallback: render via svglib + reportlab if available
+    if HAS_CAIRO:
+        try:
+            return cairosvg.svg2png(
+                bytestring=svg_content.encode("utf-8"),
+                output_width=width,
+                output_height=height,
+            )
+        except Exception as exc:
+            errors.append(f"cairosvg: {exc}")
+
     try:
         from svglib.svglib import svg2rlg
         from reportlab.graphics import renderPM
@@ -28,7 +32,6 @@ def _svg_to_png_bytes(svg_content: str, width: int, height: int) -> bytes:
         drawing = svg2rlg(io.BytesIO(svg_content.encode("utf-8")))
         if drawing is None:
             raise RuntimeError("svglib could not parse SVG")
-        # Scale to requested size
         scale_x = width / drawing.width if drawing.width else 1
         scale_y = height / drawing.height if drawing.height else 1
         drawing.width = width
@@ -36,9 +39,14 @@ def _svg_to_png_bytes(svg_content: str, width: int, height: int) -> bytes:
         drawing.scale(scale_x, scale_y)
         return renderPM.drawToString(drawing, fmt="PNG")
     except Exception as exc:
-        raise RuntimeError(
-            "No SVG rasterizer available. Install cairosvg or svglib+reportlab."
-        ) from exc
+        errors.append(f"svglib: {exc}")
+
+    detail = "; ".join(errors) if errors else "unknown"
+    raise RuntimeError(
+        "Could not rasterize SVG for export. "
+        "On Streamlit Cloud, ensure packages.txt includes Cairo libraries. "
+        f"Details: {detail}"
+    )
 
 
 def export_png(
